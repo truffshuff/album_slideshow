@@ -13,11 +13,14 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+import logging
 from typing import Callable
 
 from homeassistant.core import HomeAssistant, callback
 
 from .const import DOMAIN, VIEWER_GRACE_SECONDS, WS_VIEWER_HEARTBEAT
+
+_LOGGER = logging.getLogger(__name__)
 
 Listener = Callable[[], None]
 
@@ -68,7 +71,7 @@ class ViewerTracker:
     def async_heartbeat(self, entry_id: str) -> None:
         """A card is on screen; it counts until the grace period runs out."""
         album = self._albums.setdefault(entry_id, _AlbumViewers())
-        self._set_watched(album)
+        self._set_watched(entry_id, album, "a card checked in")
         if not album.streams:
             self._restart_timer(entry_id, album)
 
@@ -77,10 +80,11 @@ class ViewerTracker:
         """A live stream is open; it counts until the returned callback runs."""
         album = self._albums.setdefault(entry_id, _AlbumViewers())
         album.streams += 1
+        _LOGGER.debug("Viewers %s: live stream opened (%d open)", entry_id, album.streams)
         if album.timer is not None:
             album.timer.cancel()
             album.timer = None
-        self._set_watched(album)
+        self._set_watched(entry_id, album, "a live stream opened")
         closed = False
 
         @callback
@@ -90,6 +94,7 @@ class ViewerTracker:
                 return
             closed = True
             album.streams -= 1
+            _LOGGER.debug("Viewers %s: live stream closed (%d open)", entry_id, album.streams)
             if not album.streams:
                 self._restart_timer(entry_id, album)
 
@@ -108,11 +113,15 @@ class ViewerTracker:
         if album.streams or album.unwatched:
             return
         album.unwatched = True
+        _LOGGER.debug(
+            "Viewers %s: no card or stream for %ss, now unwatched", entry_id, self._grace
+        )
         self._notify(album)
 
-    def _set_watched(self, album: _AlbumViewers) -> None:
+    def _set_watched(self, entry_id: str, album: _AlbumViewers, reason: str) -> None:
         if album.unwatched:
             album.unwatched = False
+            _LOGGER.debug("Viewers %s: %s, watched again", entry_id, reason)
             self._notify(album)
 
     @staticmethod

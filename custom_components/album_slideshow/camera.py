@@ -66,6 +66,8 @@ _MAX_RENDER_ATTEMPTS = 10
 # Upcoming slides render ahead of time, so this rarely delays a slide.
 _ENRICH_WAIT_SECONDS = 8.0
 
+_MB = 1024 * 1024
+
 # Fixed floor (in items) for the pairing cooldown exclusion zone, applied on
 # each side of the current index in addition to the percentage-based radius.
 # Keeps tiny albums from pairing consecutive/near-consecutive shots even when
@@ -245,6 +247,10 @@ class _DownloadCache:
     def put(self, url: str, data: bytes) -> None:
         if len(data) > self._max_bytes:
             # Item exceeds the entire cache budget; skip caching but don't raise.
+            _LOGGER.debug(
+                "Image cache: not caching %.1f MB image, larger than the %.1f MB budget",
+                len(data) / _MB, self._max_bytes / _MB,
+            )
             return
         if url in self._cache:
             self._total_bytes -= len(self._cache[url])
@@ -254,13 +260,28 @@ class _DownloadCache:
         self._evict()
 
     def resize(self, max_bytes: int) -> None:
-        self._max_bytes = max(max_bytes, 1)
+        max_bytes = max(max_bytes, 1)
+        if max_bytes != self._max_bytes:
+            _LOGGER.debug(
+                "Image cache: budget %.1f MB -> %.1f MB (%.1f MB in use)",
+                self._max_bytes / _MB, max_bytes / _MB, self._total_bytes / _MB,
+            )
+        self._max_bytes = max_bytes
         self._evict()
 
     def _evict(self) -> None:
+        count = freed = 0
         while self._total_bytes > self._max_bytes and self._cache:
             _, data = self._cache.popitem(last=False)
             self._total_bytes -= len(data)
+            count += 1
+            freed += len(data)
+        if count:
+            _LOGGER.debug(
+                "Image cache: evicted %d image(s) (%.1f MB), now %.1f/%.1f MB, %d cached",
+                count, freed / _MB, self._total_bytes / _MB, self._max_bytes / _MB,
+                len(self._cache),
+            )
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
@@ -1327,6 +1348,12 @@ class AlbumSlideshowCamera(Camera):
     def _on_viewers_change(self) -> None:
         if not self.store.pause_when_unwatched:
             return
+        _LOGGER.debug(
+            "Album Slideshow %s: %s",
+            self.entry.title,
+            "paused, no one is viewing it" if self._paused_unwatched
+            else "resumed, a viewer is back",
+        )
         # Wake the render loop; a returning viewer gets a full interval on
         # the slide they find.
         self._slide_deadline = None
@@ -1409,8 +1436,15 @@ class AlbumSlideshowCamera(Camera):
         enrich = getattr(getattr(self, "coordinator", None), "async_enrich_item", None)
         if enrich is None:
             return
+        loop = asyncio.get_running_loop()
+        started = loop.time()
         try:
-            await asyncio.wait_for(asyncio.shield(enrich(item)), _ENRICH_WAIT_SECONDS)
+            fetched = await asyncio.wait_for(asyncio.shield(enrich(item)), _ENRICH_WAIT_SECONDS)
+            if fetched:
+                _LOGGER.debug(
+                    "Album Slideshow: fetched metadata for %s in %d ms before display",
+                    getattr(item, "filename", None), (loop.time() - started) * 1000,
+                )
         except asyncio.CancelledError:
             raise
         except Exception as err:  # noqa: BLE001 - render without metadata

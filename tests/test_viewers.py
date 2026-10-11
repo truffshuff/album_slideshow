@@ -293,3 +293,25 @@ def test_websocket_heartbeat_rejects_unknown_or_foreign_entries(websocket, entry
     assert connection.errors == [(3, "not_found")]
     assert connection.results == []
     assert "viewers" not in hass.data.get(DOMAIN, {})
+
+
+def test_watched_and_unwatched_transitions_are_logged_once(caplog):
+    async def run():
+        tracker = viewers.ViewerTracker(GRACE)
+        _tracked(tracker)
+        await asyncio.sleep(GRACE * 1.5)
+        tracker.async_heartbeat("album")
+        # A second check-in while already watched is not a transition.
+        tracker.async_heartbeat("album")
+        close = tracker.async_add_stream("album")
+        close()
+
+    with caplog.at_level("DEBUG", logger="custom_components.album_slideshow.viewers"):
+        asyncio.run(run())
+    messages = [record.getMessage() for record in caplog.records]
+    assert messages == [
+        f"Viewers album: no card or stream for {GRACE}s, now unwatched",
+        "Viewers album: a card checked in, watched again",
+        "Viewers album: live stream opened (1 open)",
+        "Viewers album: live stream closed (0 open)",
+    ]
