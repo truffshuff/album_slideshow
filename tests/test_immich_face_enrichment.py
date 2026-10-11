@@ -425,3 +425,56 @@ def test_immich_edit_and_face_endpoints():
     client._get = AsyncMock(return_value={})
     with pytest.raises(ValueError):
         asyncio.run(client.async_get_faces("a1"))
+
+
+def test_restart_reuses_saved_metadata_instead_of_rescanning_the_library():
+    saved = {}
+
+    async def save(payload):
+        saved["payload"] = payload
+
+    async def load():
+        return saved.get("payload")
+
+    coord = _coordinator('{"people": ["p1"]}')
+    coord.entry.options = {}
+    coord.data = None
+    coord._enrichment_task = None
+    coord._items_cache_loaded = False
+    coord._enrich_progress = {}
+    coord._items_cache_store = SimpleNamespace(async_save=save, async_load=AsyncMock(side_effect=load))
+    coord.async_set_updated_data = lambda data: setattr(coord, "data", data)
+
+    scanned = _item()
+    scanned.description = "Portrait"
+    scanned.faces = [[0.1, 0.1, 0.3, 0.3, 0.04]]
+    scanned.exif_scanned = scanned.face_scanned = True
+    new_photo = c.MediaItem(
+        url="http://immich.test/api/assets/a2/thumbnail?size=preview",
+        width=1000, height=800, mime_type=None, filename="new.jpg", source_id="a2",
+    )
+    asyncio.run(coord._save_cached_items({"title": "Family", "items": [scanned]}))
+
+    async def restart_and_refresh_twice():
+        # A fresh coordinator after a restart fetches unscanned items again.
+        coord._update_immich = AsyncMock(return_value={"title": "Family", "items": [_item(), new_photo]})
+        first = await coord._async_update_data()
+        pending = [item.source_id for item in first["items"] if coord._needs_enrichment(item)]
+        if coord._enrichment_task is not None:
+            coord._enrichment_task.cancel()
+        coord.data = first
+        coord._update_immich.return_value = {"title": "Family", "items": [_item()]}
+        second = await coord._async_update_data()
+        if coord._enrichment_task is not None:
+            coord._enrichment_task.cancel()
+        return first, pending, second
+
+    first, pending, second = asyncio.run(restart_and_refresh_twice())
+    restored = first["items"][0]
+    assert restored.description == "Portrait"
+    assert restored.faces == [[0.1, 0.1, 0.3, 0.3, 0.04]]
+    assert restored.exif_scanned and restored.face_scanned
+    # Only the photo added since the last save is looked up.
+    assert pending == ["a2"]
+    assert second["items"][0].face_scanned
+    assert coord._items_cache_store.async_load.await_count == 1

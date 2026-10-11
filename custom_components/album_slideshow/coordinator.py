@@ -1323,9 +1323,14 @@ class AlbumCoordinator(DataUpdateCoordinator):
             self._schedule_enrichment(data)
         elif self.provider in ENRICHING_PROVIDERS and items:
             # Carry forward EXIF/geocode metadata for items we've already
-            # scanned this session; new items get filled in by the
-            # background worker below.
-            prior_items = (self.data or {}).get("items") if isinstance(self.data, dict) else None
+            # scanned, this session or (after a restart) in the items cache
+            # on disk; new items get filled in by the background worker
+            # below. Session items come last so they win over the cache.
+            prior_items = list((self.data or {}).get("items") or []) if isinstance(self.data, dict) else []
+            if not self._items_cache_loaded:
+                cached = await self._load_cached_items()
+                prior_items = (cached or {}).get("items", []) + prior_items
+                self._items_cache_loaded = True
             if prior_items:
                 _merge_prior_enrichment(items, prior_items)
             await self._relabel_from_place_cache(items)
