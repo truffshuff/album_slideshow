@@ -33,7 +33,7 @@
  *                           # allows it, falling back to that button.
  */
 
-const VERSION = "1.15.0-t.2";
+const VERSION = "1.15.0-t.3";
 
 const ANIMATED_TRANSITIONS = [
   "fade",
