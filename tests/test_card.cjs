@@ -1859,3 +1859,29 @@ test("the visual editor round-trips the video sound setting", () => {
   editor._valueChanged({ stopPropagation() {}, detail: { value: { ...editor._data(), video_audio: "off" } } });
   assert.equal(saved.video_audio, undefined);
 });
+
+test("re-rendering the same photo fades instead of playing a new transition", () => {
+  const requests = [];
+  context.Image = class { constructor() { requests.push(this); } };
+  const card = Object.create(Card.prototype);
+  card._config = { entity: "camera.test" };
+  card._loadGeneration = 0;
+  card._displayedPhotoIds = ["p1"];
+  const attrs = { frame_id: 2, hidden_revision: 0 };
+  card._hass = { states: { "camera.test": { attributes: attrs } } };
+  const swaps = [];
+  card._performSwap = (...args) => swaps.push(args[4]);
+  card._startVideo = () => {};
+  card._refreshPhotoControls = () => {};
+  const load = (frameId, photoIds) => {
+    attrs.frame_id = frameId;
+    card._loadAndSwap(`/f${frameId}.jpg`, "cover", false, null, {
+      entityId: "camera.test", frameId, hiddenRevision: 0, photoIds,
+    });
+    requests.at(-1).onload();
+  };
+  load(2, ["p1"]);
+  load(3, ["p2"]);
+  load(4, ["p2", "p3"]);
+  assert.equal(JSON.stringify(swaps), "[true,false,false]");
+});

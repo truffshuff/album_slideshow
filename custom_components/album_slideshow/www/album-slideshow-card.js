@@ -1284,11 +1284,16 @@ function createAlbumSlideshowCardClass(Base) {
         this._maybeSwap();
         return;
       }
+      // A re-render of the same photo (new metadata, e.g. a face-aware crop)
+      // should not look like a new slide.
+      const samePhoto = photoData.photoIds.length > 0 &&
+        photoData.photoIds.length === this._displayedPhotoIds.length &&
+        photoData.photoIds.every((id, index) => id === this._displayedPhotoIds[index]);
       this._displayedPhotoIds = [...photoData.photoIds];
       this._displayedFrameId = photoData.frameId;
       this._photoEntryId = photoData.entryId;
       this._photoOrientation = photoData.orientation;
-      this._performSwap(url, fit, blurBackdrop, captionData);
+      this._performSwap(url, fit, blurBackdrop, captionData, samePhoto);
       this._startVideo(photoData.videoUrl, fit, generation, photoData.videoLoop !== false);
       if (this._navigationRequest && !this._navigationRequest.pending && photoData.frameId !== this._navigationRequest.frameId) {
         this._cancelControlNavigation();
@@ -1399,7 +1404,7 @@ function createAlbumSlideshowCardClass(Base) {
     else this._playVideo(video);
   }
 
-  _performSwap(url, fit, blurBackdrop, captionData) {
+  _performSwap(url, fit, blurBackdrop, captionData, samePhoto = false) {
     const root = this.shadowRoot;
     const placeholder = root.getElementById("placeholder");
     if (placeholder) placeholder.remove();
@@ -1419,7 +1424,7 @@ function createAlbumSlideshowCardClass(Base) {
       el.classList.add(fit === "contain" ? "fit-contain" : "fit-cover");
     }
 
-    const transition = this._pickTransition();
+    const transition = samePhoto ? "fade" : this._pickTransition();
     const transitionClass = `t-${transition}`;
 
     // First frame: no animation, just place the image and reveal.
