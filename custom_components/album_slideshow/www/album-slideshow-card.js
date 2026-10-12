@@ -33,7 +33,7 @@
  *                           # allows it, falling back to that button.
  */
 
-const VERSION = "1.15.0-t.3";
+const VERSION = "1.15.0";
 
 const ANIMATED_TRANSITIONS = [
   "fade",
@@ -829,9 +829,10 @@ function createAlbumSlideshowCardClass(Base) {
     }
   }
 
-  /** Check in while this card is on a visible page; stop once it's not. */
+  /** Check in while this card is on a visible page and Pause when not viewed is on. */
   _syncViewerHeartbeat() {
-    const entryId = this._hass?.states?.[this._config?.entity]?.attributes?.entry_id;
+    const attrs = this._hass?.states?.[this._config?.entity]?.attributes;
+    const entryId = attrs?.pause_when_unwatched ? attrs.entry_id : null;
     if (!this.isConnected || globalThis.document?.visibilityState === "hidden" || !entryId) {
       clearInterval(this._viewerTimer);
       this._viewerTimer = null;
@@ -1233,6 +1234,7 @@ function createAlbumSlideshowCardClass(Base) {
     const captionData = this._config.caption
       ? {
           caption_frames: attrs.caption_frames,
+          current_path: attrs.current_path,
           pair_orientation: attrs.pair_orientation,
           captured_at_primary: attrs.captured_at_primary,
           captured_at: attrs.captured_at,
@@ -1637,7 +1639,12 @@ function createAlbumSlideshowCardClass(Base) {
    * the flat attributes for older integration versions. */
   _buildCaptionFrames(data) {
     const cf = data.caption_frames;
-    if (Array.isArray(cf) && cf.length) return cf;
+    if (Array.isArray(cf) && cf.length) {
+      // File paths come separately (kept out of the recorder): a string, or
+      // one per image for a pair.
+      const paths = Array.isArray(data.current_path) ? data.current_path : [data.current_path];
+      return cf.map((frame, index) => (paths[index] == null ? frame : { ...frame, path: paths[index] }));
+    }
     let captured = data.captured_at_primary;
     if (captured == null) {
       captured = Array.isArray(data.captured_at)

@@ -564,6 +564,27 @@ def test_paired_captions_name_each_file(monkeypatch):
     assert (right["filename"], right["path"]) == ("right", None)
 
 
+def test_file_paths_and_the_stream_url_stay_out_of_history():
+    from .test_camera_next_slide import _cursor, _history_cam
+
+    assert {"video_url", "current_path"} <= camera.AlbumSlideshowCamera._unrecorded_attributes
+    cam, _update, _store, items, _frames = _history_cam()
+    items[2].source_path = "/library/c.jpg"
+    attributes = cam.extra_state_attributes
+    assert attributes["current_path"] == "/library/c.jpg"
+    assert "path" not in attributes["caption_frames"][0]
+    # A pair lists each image's path, top/left first.
+    items[0].source_path = "/library/a.jpg"
+    cam._last_pair_frames = [{"path": None}, {"path": None}]
+    cam._current_frame = camera._RenderedFrame(
+        b"pair", _cursor(2), {"photo_ids": [items[2].photo_id, items[0].photo_id]},
+    )
+    attributes = cam.extra_state_attributes
+    assert attributes["current_path"] == ["/library/c.jpg", "/library/a.jpg"]
+    assert all("path" not in frame for frame in attributes["caption_frames"])
+    assert attributes["caption_frames"][1]["filename"] == items[0].filename
+
+
 def test_a_slide_swapped_in_by_a_rebuild_gets_its_own_hold(monkeypatch):
     """A re-render or exclusion rebuild can replace a photo with a video
     outside the timer; the video must not inherit the photo's countdown."""

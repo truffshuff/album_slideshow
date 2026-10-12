@@ -427,7 +427,7 @@ def test_immich_edit_and_face_endpoints():
         asyncio.run(client.async_get_faces("a1"))
 
 
-def test_restart_reuses_saved_metadata_instead_of_rescanning_the_library():
+def test_restart_reuses_saved_metadata_instead_of_rescanning_the_library(caplog):
     saved = {}
 
     async def save(payload):
@@ -437,6 +437,9 @@ def test_restart_reuses_saved_metadata_instead_of_rescanning_the_library():
         return saved.get("payload")
 
     coord = _coordinator('{"people": ["p1"]}')
+    coord.hass = SimpleNamespace(
+        async_create_background_task=lambda coro, name: asyncio.ensure_future(coro),
+    )
     coord.entry.options = {}
     coord.data = None
     coord._enrichment_task = None
@@ -469,7 +472,12 @@ def test_restart_reuses_saved_metadata_instead_of_rescanning_the_library():
             coord._enrichment_task.cancel()
         return first, pending, second
 
-    first, pending, second = asyncio.run(restart_and_refresh_twice())
+    with caplog.at_level("DEBUG", logger="custom_components.album_slideshow.coordinator"):
+        first, pending, second = asyncio.run(restart_and_refresh_twice())
+    messages = [record.getMessage() for record in caplog.records]
+    assert "Album cache: loaded 1 saved items (0 skipped as unreadable)" in messages
+    assert "Album cache: 1 of 2 items already have their details" in messages
+    assert "Album enrichment: starting background pass for 1 of 2 items" in messages
     restored = first["items"][0]
     assert restored.description == "Portrait"
     assert restored.faces == [[0.1, 0.1, 0.3, 0.3, 0.04]]

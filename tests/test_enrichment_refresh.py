@@ -72,7 +72,9 @@ def test_google_items_are_left_to_the_google_pass():
     assert fetched == []
 
 
-def test_background_pass_skips_shown_items_and_saves_sparingly():
+def test_background_pass_skips_shown_items_and_saves_sparingly(monkeypatch):
+    # time.monotonic() counts from boot, so a freshly booted host reads small values.
+    monkeypatch.setattr(coordinator_module.time, "monotonic", lambda: 5.0)
     coord, fetched = _coordinator()
     items = [_item(f"p{index}") for index in range(60)]
     # The camera already enriched one on demand; the pass must skip it.
@@ -164,3 +166,25 @@ def test_a_slow_metadata_fetch_does_not_hold_up_the_slide(monkeypatch):
         return finished
 
     assert asyncio.run(main()) == ["item"]
+
+
+def test_a_fetch_before_display_is_logged_only_when_it_fetched(caplog):
+    results = iter([True, False])
+
+    async def enrich(item):
+        return next(results)
+
+    cam = camera.AlbumSlideshowCamera.__new__(camera.AlbumSlideshowCamera)
+    cam.coordinator = types.SimpleNamespace(async_enrich_item=enrich)
+
+    async def main():
+        await cam._ensure_enriched(_item("fetched"))
+        # Already enriched: nothing was fetched, so nothing is logged.
+        await cam._ensure_enriched(_item("known"))
+
+    with caplog.at_level("DEBUG", logger="custom_components.album_slideshow.camera"):
+        asyncio.run(main())
+    messages = [record.getMessage() for record in caplog.records]
+    assert len(messages) == 1
+    assert messages[0].startswith("Album Slideshow: fetched metadata for fetched in ")
+    assert messages[0].endswith(" ms before display")

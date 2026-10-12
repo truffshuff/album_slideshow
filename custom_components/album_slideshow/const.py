@@ -358,12 +358,6 @@ DEFAULT_IMAGE_CACHE_MB = 75
 # Previous/Next can swap these JPEGs immediately without downloading,
 # composing, or encoding during the button press.
 DEFAULT_NAVIGATION_BUFFER_SIZE = 2
-# A video slide stays up for the clip's length, capped by this setting.
-# Very short clips are held (and looped by the card) for the minimum so a
-# one-second clip doesn't flash past.
-DEFAULT_VIDEO_MAX_SECONDS = 60
-MAX_VIDEO_MAX_SECONDS = 3600
-MIN_VIDEO_HOLD_SECONDS = 5
 # "Pause when not viewed": each visible card checks in every
 # VIEWER_HEARTBEAT_SECONDS (the card hard-codes the same value); the
 # slideshow holds once nothing has checked in for VIEWER_GRACE_SECONDS, so
@@ -371,6 +365,12 @@ MIN_VIDEO_HOLD_SECONDS = 5
 VIEWER_HEARTBEAT_SECONDS = 20
 VIEWER_GRACE_SECONDS = 60
 WS_VIEWER_HEARTBEAT = "album_slideshow/viewer_heartbeat"
+# A video slide stays up for the clip's length, capped by this setting.
+# Very short clips are held (and looped by the card) for the minimum so a
+# one-second clip doesn't flash past.
+DEFAULT_VIDEO_MAX_SECONDS = 60
+MAX_VIDEO_MAX_SECONDS = 3600
+MIN_VIDEO_HOLD_SECONDS = 5
 
 MAX_RESOLUTION_OPTIONS = ["480p", "720p", "1080p", "1440p", "4K (2160p)", "original"]
 DEFAULT_MAX_RESOLUTION = "1080p"

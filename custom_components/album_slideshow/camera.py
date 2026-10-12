@@ -296,6 +296,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
 class AlbumSlideshowCamera(Camera):
     _attr_should_poll = False
+    # The signed stream URL and the server's file paths stay out of history.
+    _unrecorded_attributes = frozenset({"video_url", "current_path"})
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, coordinator: AlbumCoordinator, store: SlideshowStore) -> None:
         super().__init__()
@@ -385,7 +387,14 @@ class AlbumSlideshowCamera(Camera):
 
         coordinator.async_add_listener(_on_coordinator_update)
 
+        self._pause_when_unwatched = bool(store.pause_when_unwatched)
+
         def _on_store_change() -> None:
+            enabled = bool(self.store.pause_when_unwatched)
+            if enabled and not self._pause_when_unwatched and self._unsub_viewers is not None:
+                # Cards stay quiet while the setting is off; let them check in.
+                self._viewers.async_restart_grace(self.entry.entry_id)
+            self._pause_when_unwatched = enabled
             self._download_cache.resize(self.store.image_cache_mb * 1024 * 1024)
             self._slide_deadline = None
             settings = self._current_render_settings()
@@ -461,6 +470,12 @@ class AlbumSlideshowCamera(Camera):
         cur = items[self._index] if items and 0 <= self._index < len(items) else None
         captured_at = _ts_to_iso(getattr(cur, "captured_at", None))
         caption_frames = self._caption_frames(cur)
+        # Paths go out separately as ``current_path``, which isn't recorded.
+        paths = [frame.get("path") for frame in caption_frames]
+        caption_frames = [
+            {key: value for key, value in frame.items() if key != "path"}
+            for frame in caption_frames
+        ]
         captured_at_pair = (
             [frame["captured_at"] for frame in caption_frames]
             if self._last_pair_frames else None
@@ -490,7 +505,7 @@ class AlbumSlideshowCamera(Camera):
             "media_count_total": len(data.get("items", []) or []),
             "current_index": self._index,
             "current_filename": getattr(cur, "filename", None),
-            "current_path": getattr(cur, "source_path", None),
+            "current_path": paths if self._last_pair_frames else getattr(cur, "source_path", None),
             "current_url": getattr(cur, "url", None),
             "current_is_portrait": self._last_is_portrait,
             "captured_at": captured_at_pair if captured_at_pair else captured_at,
@@ -532,6 +547,7 @@ class AlbumSlideshowCamera(Camera):
             "shuffle_age_bias": int(self.store.shuffle_age_bias),
             "missing_date_mode": self.store.missing_date_mode,
             "paused": bool(self.store.paused),
+            "pause_when_unwatched": bool(self.store.pause_when_unwatched),
             "paused_unwatched": self._paused_unwatched,
             "refresh_hours": int(self.store.refresh_hours),
             "aspect_ratio": self.store.aspect_ratio,

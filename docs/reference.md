@@ -123,7 +123,7 @@ keeps advancing, downloading and preparing slides even when no dashboard is
 open. Turn on **Pause when not viewed** to stop that:
 
 - While a slideshow card is on screen, it checks in with the integration every
-  20 seconds. A live camera view (the more-info dialog, or a picture card in
+  20 seconds. Cards only check in while this setting is on. A live camera view (the more-info dialog, or a picture card in
   live mode) counts for as long as it stays open.
 - After a minute with no check-ins, the slideshow holds its current slide.
   Once the upcoming-slide buffer is full, nothing more is downloaded or
@@ -185,7 +185,7 @@ The slideshow camera exposes per-frame metadata as attributes (use with `state_a
 | `media_count_total` | int | Total photos available before filtering |
 | `current_index` | int | Index of the current slide |
 | `current_filename` | string \| null | Source filename when known |
-| `current_path` | string \| null | The file's path on the source server (Immich only) |
+| `current_path` | string \| list \| null | The file's path on the source server (Immich only). List of `[primary, partner]` when paired. Not saved in history |
 | `current_url` | string \| null | URL of the current slide. For Ente this is an internal `ente://<id>` reference, since the image is decrypted locally rather than fetched from a URL |
 | `current_is_portrait` | bool \| null | Orientation of the current slide |
 | `captured_at` | string \| list \| null | ISO-8601 capture date. List of `[primary, partner]` when paired (top/left first). For local files this is read from EXIF (or the file's mtime as a fallback). |
@@ -204,9 +204,9 @@ The slideshow camera exposes per-frame metadata as attributes (use with `state_a
 | `google_metadata_enabled` | bool | Whether optional Google photo metadata fetching is enabled for this slideshow |
 | `google_location_enabled` | bool | Whether the separate original-photo GPS opt-in is enabled; defaults to false |
 | `google_reverse_geocode_enabled` | bool | Whether both Google GPS reading and external place-name lookup are enabled; defaults to false |
-| `caption_frames` | list | Structured per-image metadata: one entry for a normal slide, two (top/left first) for a pair. Each entry has `captured_at`, `location`, `latitude`, `longitude`, `description`, `filename`, `path`, the camera/exposure fields above, and for a video slide the `video_*` stream fields below. The card can display these in captions. |
+| `caption_frames` | list | Structured per-image metadata: one entry for a normal slide, two (top/left first) for a pair. Each entry has `captured_at`, `location`, `latitude`, `longitude`, `description`, `filename`, the camera/exposure fields above, and for a video slide the `video_*` stream fields below. The card can display these in captions. |
 | `media_kind` | string | `video` when the current slide is a video (the camera image is then its poster frame), `live_photo` for a Live Photo with motion, otherwise `image` |
-| `video_url` | string \| null | Signed Home Assistant URL that streams the current video or Live Photo motion, for the card's player. `null` for photos |
+| `video_url` | string \| null | Signed Home Assistant URL that streams the current video or Live Photo motion, for the card's player. `null` for photos. Not saved in history |
 | `video_duration` | number \| null | Length of the current video in seconds, when known |
 | `video_hold_seconds` | number \| null | How long the current video slide stays up |
 | `video_version` | string \| null | `transcoded` when Immich serves its transcoded copy, `original` when it serves the original file, `null` when unknown or for photos |
@@ -215,6 +215,7 @@ The slideshow camera exposes per-frame metadata as attributes (use with `state_a
 | `video_content_type` | string \| null | Content type of the stream, such as `video/mp4` |
 | `pair_orientation` | string \| null | How a paired slide is split: `horizontal` (left/right) or `vertical` (top/bottom). `null` for single slides. |
 | `paused` | bool | Whether the slideshow is paused |
+| `pause_when_unwatched` | bool | Whether the **Pause when not viewed** switch is on; cards only check in while it is |
 | `paused_unwatched` | bool | Whether **Pause when not viewed** is holding the slideshow because nothing is showing it |
 | `date_filter` | string | Active date filter mode |
 | `custom_lookback_days` | integer | Number of days used by the custom date filter |
