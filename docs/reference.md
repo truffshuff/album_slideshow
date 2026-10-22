@@ -26,6 +26,7 @@ The following entities allow you to adjust slideshow behavior without restarting
 | Number | Max video length | 60 | 5-3600 (seconds) | Immich only. Longest time a [video slide](provider-setup.md#immich-videos) stays up; shorter clips play once |
 | Number | Shuffle age bias | 0 | -100 to 100 | Negative favors older photos; positive favors newer photos; 0 preserves the original shuffle. Used only in Random order |
 | Select | Fill mode | blur | blur, cover, contain | How images fill the canvas |
+| Select | Video fill mode | same_as_photos | same_as_photos, blur, cover, contain | Immich only. How [video slides](provider-setup.md#immich-videos) fill the canvas; pick blur or contain to show whole videos while photos stay cropped |
 | Select | Orientation mismatch | pair | pair, single, avoid | Handling of portrait and landscape mismatch |
 | Select | Order mode | random | random, album_order, newest_taken, oldest_taken, newest_added, oldest_added | Slide ordering behavior |
 | Select | Aspect ratio | 16:9 | 16:9, 4:3, 1:1, 9:16, and more | Canvas aspect ratio |

@@ -1694,6 +1694,15 @@ test("a video slide plays over its poster once the poster has loaded", () => {
   assert.ok(video.classes.has("show"));
 });
 
+test("auto fit uses the camera's video fill mode for video slides only", () => {
+  const { card, attributes, video, show } = videoCardFixture();
+  Object.assign(attributes, { fill_mode: "cover", video_fill_mode: "contain" });
+  show(1);
+  assert.ok(video.classes.has("fit-contain"));
+  assert.equal(card._resolvedFit({ ...attributes, media_kind: "image" }).fit, "cover");
+  assert.equal(card._resolvedFit({ ...attributes, media_kind: "live_photo" }).fit, "cover");
+});
+
 test("the next photo stops the clip and drops its source", () => {
   const { attributes, video, show } = videoCardFixture();
   show(1);

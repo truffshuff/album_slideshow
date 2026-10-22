@@ -148,7 +148,7 @@ caption:                    # overlay selected photo metadata
 ## Transitions and Captions
 
 - `transition: random` picks a different effect per slide and avoids repeating the previous one. Effects are `none`, `fade`, `slide-left`, `slide-right`, `slide-up`, `slide-down`, `wipe-left`, `wipe-right`, and `zoom`; `duration` and `easing` control the timing.
-- `fit: auto` reads the camera's `fill_mode` attribute. `blur` renders the slide as `contain` plus a blurred backdrop layer behind it.
+- `fit: auto` reads the camera's `fill_mode` attribute, or `video_fill_mode` on a video slide. `blur` renders the slide as `contain` plus a blurred backdrop layer behind it.
 - `videos` (default `true`) plays [video slides](provider-setup.md#immich-videos) over the camera's poster frame, and Live Photo motion over its still, pausing them with the slideshow. Set it to `false` for a card that should only show stills, for example on a slow tablet.
 - `video_audio` (default `off`) controls video sound. `muted` starts videos silent and shows a speaker button in the top-left corner; tap it to turn sound on. `on` plays videos with sound when the browser allows it. Browsers only allow sound once the page has been tapped or clicked, so if sound is blocked the video plays muted and the same button appears. In both modes the button's last choice applies to later videos until the page reloads. Kiosk browsers such as Fully Kiosk usually have their own setting to allow autoplay with sound. (`true` and `false` from earlier versions mean `on` and `off`.)
 - `photo_controls` defaults to Off. See [Hide Photos From a Slideshow](#hide-photos-from-a-slideshow) for toolbar modes, gestures, paired-photo choices, and restore behavior.

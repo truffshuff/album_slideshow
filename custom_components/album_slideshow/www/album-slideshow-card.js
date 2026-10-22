@@ -858,12 +858,14 @@ function createAlbumSlideshowCardClass(Base) {
   _resolvedFit(attrs) {
     // ``auto`` inherits from the camera's fill_mode attribute. The camera
     // exposes cover / contain / blur. ``blur`` is rendered as ``contain``
-    // plus a blurred backdrop layer.
+    // plus a blurred backdrop layer. Video slides can have their own mode
+    // (``video_fill_mode``), which their poster was drawn with.
     const cardFit = this._config.fit;
     if (cardFit !== "auto") {
       return { fit: cardFit, blurBackdrop: false };
     }
-    const cameraFill = (attrs && attrs.fill_mode) || "cover";
+    const videoFill = attrs?.media_kind === "video" ? attrs.video_fill_mode : null;
+    const cameraFill = videoFill || (attrs && attrs.fill_mode) || "cover";
     if (cameraFill === "contain") return { fit: "contain", blurBackdrop: false };
     if (cameraFill === "blur") return { fit: "contain", blurBackdrop: true };
     return { fit: "cover", blurBackdrop: false };

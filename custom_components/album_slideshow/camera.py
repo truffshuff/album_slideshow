@@ -33,6 +33,7 @@ from .const import (
     ORDER_ALBUM,
     ORDER_RANDOM,
     PROVIDER_GOOGLE_SHARED,
+    VIDEO_FILL_SAME,
 )
 from . import image_processing as ip
 from . import playlist
@@ -90,6 +91,7 @@ _FRAME_ID_MEMORY = 64
 # size, cache size) keep the navigation history.
 _RENDER_SETTINGS = (
     "fill_mode",
+    "video_fill_mode",
     "portrait_mode",
     "order_mode",
     "shuffle_age_bias",
@@ -548,6 +550,9 @@ class AlbumSlideshowCamera(Camera):
             "pair_orientation": self._last_pair_orientation,
             "slide_interval": int(self.store.slide_interval),
             "fill_mode": self.store.fill_mode,
+            # The fill mode video slides are drawn with, so the card can fit
+            # the playing clip exactly over its poster.
+            "video_fill_mode": self._video_fill_mode(),
             "portrait_mode": self.store.portrait_mode,
             "order_mode": self.store.order_mode,
             "date_filter": self.store.date_filter,
@@ -1565,6 +1570,14 @@ class AlbumSlideshowCamera(Camera):
             return
         self._index = (self._index + 1) % count
 
+    def _video_fill_mode(self) -> str:
+        mode = getattr(self.store, "video_fill_mode", VIDEO_FILL_SAME)
+        return self.store.fill_mode if mode == VIDEO_FILL_SAME else mode
+
+    def _slide_fill_mode(self, item: MediaItem | None, fill_mode: str) -> str:
+        """``fill_mode`` for a photo; videos may have their own."""
+        return self._video_fill_mode() if _is_video(item) else fill_mode
+
     def _crop_hints(self, item: MediaItem | None) -> ip.CropHints:
         return ip.CropHints(
             faces=_item_faces(item),
@@ -1672,7 +1685,8 @@ class AlbumSlideshowCamera(Camera):
                 return composed, meta
 
             composed = await self._async_image_job(
-                ip.render_image, img, fill_mode, width, height, self._crop_hints(cur)
+                ip.render_image, img, self._slide_fill_mode(cur, fill_mode), width, height,
+                self._crop_hints(cur),
             )
             return composed, {
                 "is_portrait": cur_is_portrait,
@@ -1725,7 +1739,8 @@ class AlbumSlideshowCamera(Camera):
                     self._do_advance(count, items)
                 await self._ensure_enriched(cur)
                 composed = await self._async_image_job(
-                    ip.render_image, img, fill_mode, width, height, self._crop_hints(cur)
+                    ip.render_image, img, self._slide_fill_mode(cur, fill_mode), width, height,
+                    self._crop_hints(cur),
                 )
                 return composed, {
                     "is_portrait": is_portrait_canvas,
@@ -1752,7 +1767,8 @@ class AlbumSlideshowCamera(Camera):
         try:
             cur_is_portrait = ip.is_portrait_item(item, img)
             composed = await self._async_image_job(
-                ip.render_image, img, fill_mode, width, height, self._crop_hints(item)
+                ip.render_image, img, self._slide_fill_mode(item, fill_mode), width, height,
+                self._crop_hints(item),
             )
             return composed, {
                 "is_portrait": cur_is_portrait,

@@ -25,6 +25,7 @@ from .const import (
     DEFAULT_CUSTOM_LOOKBACK_DAYS,
     DEFAULT_MISSING_DATE_MODE,
     DEFAULT_VIDEO_MAX_SECONDS,
+    DEFAULT_VIDEO_FILL_MODE,
 )
 
 
@@ -47,6 +48,7 @@ class SlideshowStore:
     navigation_buffer_size: int = DEFAULT_NAVIGATION_BUFFER_SIZE
     max_resolution: str = DEFAULT_MAX_RESOLUTION
     video_max_seconds: int = DEFAULT_VIDEO_MAX_SECONDS
+    video_fill_mode: str = DEFAULT_VIDEO_FILL_MODE
 
     # Date filter mode (preset windows like this_year / on_this_day).
     date_filter: str = DEFAULT_DATE_FILTER

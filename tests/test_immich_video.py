@@ -23,6 +23,8 @@ from custom_components.album_slideshow.const import (
     CONF_IMMICH_SELECTION_TYPE,
     CONF_IMMICH_URL,
     DOMAIN,
+    FILL_CONTAIN,
+    FILL_COVER,
     ORIENTATION_MISMATCH_PAIR,
 )
 from custom_components.album_slideshow.coordinator import MediaItem
@@ -272,6 +274,38 @@ def test_a_video_is_never_chosen_as_a_pairing_partner(monkeypatch):
     frame = asyncio.run(cam._render_available_frame(cam._capture_cursor(), items, advance=False))
     assert frame.meta["photo_ids"] == [items[0].photo_id, items[2].photo_id]
     assert "video" not in frame.meta
+
+
+def _rendered_fill_modes(monkeypatch, cam, items):
+    modes = []
+    render = camera.ip.render_image
+
+    def spy(img, fill_mode, *args):
+        modes.append(fill_mode)
+        return render(img, fill_mode, *args)
+
+    monkeypatch.setattr(camera.ip, "render_image", spy)
+    for index in range(len(items)):
+        cam._index = index
+        asyncio.run(cam._render_available_frame(cam._capture_cursor(), items, advance=False))
+    return modes
+
+
+def test_videos_can_be_shown_uncropped_while_photos_are_cropped(monkeypatch):
+    items = [_media("clip", portrait=False, clip=True), _media("photo", portrait=False)]
+    cam = _render_cam(monkeypatch, items)
+    cam.store.fill_mode = FILL_COVER
+    cam.store.video_fill_mode = FILL_CONTAIN
+    assert _rendered_fill_modes(monkeypatch, cam, items) == [FILL_CONTAIN, FILL_COVER]
+    assert cam._video_fill_mode() == FILL_CONTAIN
+
+
+def test_videos_follow_the_photo_fill_mode_by_default(monkeypatch):
+    items = [_media("clip", portrait=False, clip=True), _media("photo", portrait=False)]
+    cam = _render_cam(monkeypatch, items)
+    cam.store.fill_mode = FILL_COVER
+    assert _rendered_fill_modes(monkeypatch, cam, items) == [FILL_COVER, FILL_COVER]
+    assert cam._video_fill_mode() == FILL_COVER
 
 
 def test_applying_a_video_frame_publishes_a_signed_url_and_hold(monkeypatch):

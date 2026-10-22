@@ -21,6 +21,8 @@ from .const import (
     DATE_FILTER_OFF,
     MISSING_DATE_OPTIONS,
     MISSING_DATE_USE_UPLOADED,
+    PROVIDER_IMMICH,
+    VIDEO_FILL_OPTIONS,
 )
 from .store import SlideshowStore
 
@@ -33,17 +35,20 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     store: SlideshowStore = hass.data[DOMAIN][entry.entry_id]["store"]
-    async_add_entities(
-        [
-            FillModeSelect(entry, store),
-            PortraitModeSelect(entry, store),
-            OrderModeSelect(entry, store),
-            AspectRatioSelect(entry, store),
-            MaxResolutionSelect(entry, store),
-            DateFilterSelect(entry, store),
-            MissingDateModeSelect(entry, store),
-        ]
-    )
+    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    entities = [
+        FillModeSelect(entry, store),
+        PortraitModeSelect(entry, store),
+        OrderModeSelect(entry, store),
+        AspectRatioSelect(entry, store),
+        MaxResolutionSelect(entry, store),
+        DateFilterSelect(entry, store),
+        MissingDateModeSelect(entry, store),
+    ]
+    # Only providers that can surface videos get the video fill setting.
+    if getattr(coordinator, "provider", None) == PROVIDER_IMMICH:
+        entities.append(VideoFillModeSelect(entry, store))
+    async_add_entities(entities)
 
 
 class _BaseSelect(SelectEntity, RestoreEntity):
@@ -93,6 +98,34 @@ class FillModeSelect(_BaseSelect):
         old = await self.async_get_last_state()
         if old and old.state in self.options:
             self.store.fill_mode = old.state
+            self.store.notify()
+
+
+class VideoFillModeSelect(_BaseSelect):
+    _attr_icon = "mdi:video-image"
+
+    def __init__(self, entry: ConfigEntry, store: SlideshowStore) -> None:
+        super().__init__(entry, store)
+        self._attr_unique_id = f"{entry.entry_id}_video_fill_mode"
+        self._attr_name = "Video fill mode"
+        self._attr_options = list(VIDEO_FILL_OPTIONS)
+
+    @property
+    def current_option(self):
+        value = self.store.video_fill_mode
+        return value if value in self.options else self.options[0]
+
+    async def async_select_option(self, option: str) -> None:
+        if option not in self.options:
+            return
+        self.store.video_fill_mode = option
+        self.store.notify()
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        old = await self.async_get_last_state()
+        if old and old.state in self.options:
+            self.store.video_fill_mode = old.state
             self.store.notify()
 
 

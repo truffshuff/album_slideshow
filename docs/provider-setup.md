@@ -206,6 +206,9 @@ or later under **Configure**.
   **Max video length** setting (default 60 seconds), which is created only
   for Immich slideshows.
 - Videos are never paired with another photo.
+- Videos use the **Fill mode** setting unless **Video fill mode** (also
+  created only for Immich slideshows) says otherwise. Set it to **blur** or
+  **contain** to show whole videos while photos stay cropped with **cover**.
 - Home Assistant streams the video from Immich's playback endpoint, so the
   API key stays on the server. Immich serves its transcoded version when its
   video transcoding settings require one, which is what lets iPhone HEVC
